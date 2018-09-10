@@ -23,7 +23,7 @@ The logging is done by caching messages in a variable attached to the `Applicati
 * Tightly coupled with the binder, relies on passing around an instance (`ApplicationContext` in this case) to all the methods which need it. Would be expensive and tricky to extend to other layers.
 * Only suitable for native code, exposing it to managed code would be relatively problematic.
 * Only supports writing to a file.
-* Currently very incomplete wince it doesn't write lot of interesting bits as the `AssemblyBinder` is basically the lowest level of the binding algorithm and there are lot of decisions made in the higher level components.
+* Currently very incomplete since it doesn't write lot of the interesting bits as the `AssemblyBinder` is basically the lowest level of the binding algorithm and there are lot of decisions made in the higher level components.
 
 ### Binder log
 The binder also uses another logging which is much more detailed than the Fusion logging. It uses macros like `BINDER_LOG_ENTER, BINDER_LOG_LEAVE, BINDER_LOG_STRING, ...`. This also only writes to a file. It is very detailed and includes lot of implementation details. Also seems to currently not be enabled in the build at all.
@@ -39,27 +39,27 @@ This section contains samples of traces. Don't look for a spec for the specific 
 ### Ability to correlate traces
 All traces about a single assembly bind event should be easy to correlate. To that end there will be start/end traces like this:
 ```
-Assembly bind start - assembly bind 12044
+Assembly bind start - //1/2
     assembly: "TestAssembly, version=1.2.3.0",
     requestor: AsmRef from "AppAssembly, version=1.0.0.0" location /path/AppAssembly.dll
 ```
 ```
-Assembly bind end - assembly bind 12044
+Assembly bind end - //1/2
     Success
     Bound to assembly "TestAssembly, version=1.2.3.0" location /path/TestAssembly.dll
 ```
 
-All traces about the binding will be in-between these start/end traces and will include the `assembly bind 12044` identifier. This bind ID should be opaque and probably with no additional meaning. There are opportunities to use this with sub-components of the binder to annotate their own events/traces. For example the future `.deps.json` based `AssemblyLoadContext` implementation will call into the native CLR host components. It would pass this bind ID so that these components can include in their own tracing and thus it can be correlated to the binder tracing. The value used in this document is just a sample, the exact way to construct the bind ID is yet to be decided.
+All traces about the binding will be in-between these start/end traces and will include the `//1/2` identifier. Other than correlating binder events themselves there are opportunities to use this with sub-components of the binder to annotate their own events/traces. For example the future `.deps.json` based `AssemblyLoadContext` implementation will call into the native CLR host components. It would pass this activity ID so that these components can include it in their own tracing and thus it can be correlated to the binder tracing. Currently we're using the EventSource activity ID typical representation, but the exact format will be determined later on.
 
 ### Extension points
 The binder algorithm in the runtime calls several different potentially user-defined extension points on both `AssemblyLoadContext` and `AppDomain`. Each such extension point invocation should be wrapped in begin/end traces. For example:
 ```
-Calling AssemblyLoadContext.Load - assembly bind 12044
+Calling AssemblyLoadContext.Load - //1/2
     AssemblyLoadContext: App.CustomALC "My app ALC"
     assembly: "TestAssembly, version=1.2.3.0"
 ```
 ```
-Returned from AssemblyLoadContext.Load - assembly bind 12044
+Returned from AssemblyLoadContext.Load - //1/2
     AssemblyLoadContext: App.CustomALC "My app ALC"
     Returned assembly: null
 ```
@@ -68,54 +68,55 @@ Similarly for event handlers. This would let consumers of the tracing reason abo
 
 Additionally the tracing should be usable from the implementation of the extension points. So that for example our own implementation of ALC (the future `.deps.json` based `AssemblyLoadContext`), or our own event handlers (the resolve event handler in `Assembly.LoadFrom`) can trace additional information. An example of such tracing could be (from `Assembly.LoadFrom`):
 ```
-Resolution of assembly in Assembly.LoadFrom resolve handler - assembly bind 12044
+Resolution of assembly in Assembly.LoadFrom resolve handler - //1/2
     assembly name: TestDependency
     requesting assembly: "PluginMain, version=1.0.0.0" location /path/PluginMain.dll
     Requesting assembly was loaded with Assembly.LoadFrom, using LoadFrom resolution for the dependency.
 ```
 ```
-Assembly.LoadFrom dependency resolution probing - assembly bind 12044
+Assembly.LoadFrom dependency resolution probing - //1/2
     attempting to load assembly from path: /path/TestDependency.dll
 ```
-These traces are specific to the `Assembly.LoadFrom` implementation and are not really part of the binder in any way. But they can still use the same tracing mechanisms and are correlated through the bind ID.
+These traces are specific to the `Assembly.LoadFrom` implementation and are not really part of the binder in any way. But they can still use the same tracing mechanisms and are correlated through the activity ID.
 
 Eventually this tracing should be available to 3rd party extensions as well, with the same benefits as 1st party components.
 
 ### Resolution fallback flow
 The binder implements a series of fallbacks as it tries to resolve the assembly. The traces should clearly describe what was tried (and potentially why). For example traces like
 ```
-Loading into custom AssemblyLoadContext - assembly bind 12044
+Loading into custom AssemblyLoadContext - //1/2
     AssemblyLoadContext: App.CustomALC "My app ALC"
 ```
 ```
-Falling back to AssemblyLoadContext.Default - assembly bind 12044
+Falling back to AssemblyLoadContext.Default - //1/2
 ```
 ```
-Trying to resolve with AssemblyLoadContext.Resolving event handlers - assembly bind 12044
+Trying to resolve with AssemblyLoadContext.Resolving event handlers - //1/2
 ```
 ```
-Trying to resolve with AppDomain.AssemblyResolve event handlers - assembly bind 12044
+Trying to resolve with AppDomain.AssemblyResolve event handlers - //1/2
 ```
 
 ### Binding attempts
+Terminology: Binding attempt here means the mechanism in the runtime which tries to find/add assembly name to a load context. This operation on its own doesn't actually load/bind the assembly, it just reconciles it with the load context. This operation is relatively frequent in the binder, for one external binding event there can be several binding attempts done internally.
 Each binding attempt should exactly describe what we're trying to bind, where we're trying to bind it and what was the outcome. This potentially overlaps with improvements to exception messages in the binder.
 Example traces:
 ```
-Binding attempt - assembly bind 12044
+Binding attempt - //1/2
     assembly: "TestAssembly, version=1.2.3.0"
     AssemblyLoadContext: Default
     result: Failed
     reason: No assembly with name "TestAssembly" is loaded into the loader context
 ```
 ```
-Binding attempt - assembly bind 12044
+Binding attempt - //1/2
     assembly: "TestAssembly, version=2.4.0.0"
     AssemblyLoadContext: Default
     result: Failed
     reason: Loader context already contains assembly "TestAssembly" but with lower version "1.2.3.0"
 ```
 ```
-Binding attempt - assembly bind 12044
+Binding attempt - //1/2
     assembly: "TestAssembly, version=1.2.3.0"
     AssemblyLoadContext: Default
     result: Success
@@ -124,15 +125,15 @@ Binding attempt - assembly bind 12044
 
 ### Nesting
 During assembly resolution it's very common to recursively call into methods which act as binder entry points. For example `Assembly.LoadFrom`, `Assembly.Load` or `AssemblyLoadContext.LoadFromAssemblyPath`. These methods are used to implement the actual resolution logic in custom ALC or event handlers.
-It's unclear if we would treat these as truly nested binding attempts, or instead if we would somehow fold them into the active binding operation. In any case we would have to keep the bind ID in some form.
+It's unclear if we would treat these as truly nested binding attempts, or instead if we would somehow fold them into the active binding operation. In any case we would have to keep the //1/2 in some form.
 It seems that we should include begin/end traces for these operations regardless. An example of "folded" traces:
 ```
-Begin AssemblyLoadContext.LoadFromAssemblyPath - assembly bind 12044
+Begin AssemblyLoadContext.LoadFromAssemblyPath - //1/2
     AssemblyLoadContext: App.CustomALC "My app ALC"
     assembly path: /path/TestAssembly.dll
 ```
 ```
-End AssemblyLoadContext.LoadFromAssemblyPath - assembly bind 12044
+End AssemblyLoadContext.LoadFromAssemblyPath - //1/2
     AssemblyLoadContext: App.CustomALC "My app ALC"
     Loaded assembly: "TestAssembly, version=1.2.3.0" location /path/TestAssembly.dll
 ```
@@ -162,21 +163,24 @@ The user is trying to implement an extension point for the binder (event handler
 
 ## Tracing mechanisms
 This section describes the proposed mechanisms to be used.
-### Context
-In order to provide the correlation of various traces which belong to the same bind event, there has to be a context which is accessible to all components which participate in the tracing. Maybe not at first but eventually we would like the tracing APIs to be available to 3rd party binding extensions (ALCs, event handlers).  
-As such we can't rely on passing around instances of some context object. Instead thread local variable would be used to assign the context based on the thread running it.
-The context would store the bind ID and potentially other information about the bind event (the original requestor for example).
-
-### Tracing API
-Since we want to eventually expose these APIs and also due to implementation choices it seems that it would be better to base the trace APIs in managed code.  
-The core tracing APIs would be in managed code (static class with static methods in System.Private.CoreLib). Since we also need to trace from native components, there would be a slim native wrapper which would call into the managed code to perform the actual tracing.
-
-Implementation note: By using managed code there's a potential reentracy issue where trying to trace might cause new bind events. We will have to evaluate the potential solutions to these issues.
 
 ### Tracing mechanism
 The core tracing mechanism will be `EventSource` which allows the tracing to use ETW, EventPipe or LTTng and is extensible. The tracing API will implement its own event source and probably define several specific events (like start/end of bind and so on) as well as a generic event for the rest. This mechanism will fulfill scenarios like Azure infrastructure and other production deployment scenarios where OS based tracing mechanism is preferred (especially ETW on Windows).  
 
 Depending on improvements in the general tracing infrastructure there might be a need for a secondary route which would write the tracing into a file (probably triggered by an environment variable). Currently it seems that in order to provide the best value with this feature we need a very easy way to consume the traces which works everywhere. Humanly readable text files are a great fit for this.
+
+### Tracing API
+The binder code is both in native and managed. The tracing will be invoked form both. Given that it's MUCH easier to implement custom `EventSource` in managed code we will do so and for the native callers have a small wrapper which will call the managed code from native.
+
+We don't plan to expose this event source to 3rd party components. Those should define their own even source and correlate with 1ts party binder tracing through activity IDs.
+
+### Context
+Event source provides a mechanism to correlate traces which belong to one operation through activity IDs. The entry points to the binder would start a new activity and wrap all of the bind into it. That way all events (not just those from the binder, but any event from that thread) will get that activity ID and thus should be easy to correlate to each other. The event source infrastructure maintains the activity ID per thread and in cooperation with TPL it can even correctly trace it across async tasks. See this [blog post](https://blogs.msdn.microsoft.com/vancem/2015/09/14/exploring-eventsource-activity-correlation-and-causation-features/) for more details.
+
+### Anticipated complexities
+* Binder doesn't have a clear single entry point. Instead there are several different methods and mechanisms which can lead into the binder (`Assembly.Load*`, `AssemblyLoadContext`, implicit resolution of assembly references, ...). As such it's relatively tricky to create a consistent Start/Stop traces around each binder operation.
+* Binder is internally recursive. In lot of cases binder operation leads into another nested binder operation. `EventSource` activity tracking by default doesn't handle recursion (intentional). We could enable it, but then we would have to guarantee correct Start/Stop matching on our end in all cases (even on error conditions). It will probably be simpler to have a thread local variable which marks the thread as running binder operation and only Start a new binder operation if that's not the case. We would still try to correctly call Start/Stop but it would no longer be absolutely necessary to do so in all cases.
+* Binder and `EventSource` are recursive - that is it can happen that a call to event source will end up invoking binder. This could lead to endless recursion. Event source itself is implemented in `System.Private.CoreLib` so it will not cause new binds, but potential extensions like event listeners will not and thus may cause bind operations. This problem already exists in event source today and as of now we push the responsibility handle this correctly to the listeners. As this is somewhat orthogonal to binder tracing (binder is just yet another source of such potential recursion) we're not trying to solve it here.
 
 ## What's still missing
 TODOs for this document:
@@ -184,4 +188,4 @@ TODOs for this document:
     * DllMap interactions?
     * Is there interaction between managed resolution and native resolution?
     * Describe scenarios
-* Reentracy problem - using tracing in binding code can mean new binding events inside the tracing implementation. How could this be handled and is this a big problem?
+* What are the internal runtime entry points to the binder (outside of `Assembly.Load*` and `AssemblyLoadContext`)? Can we correctly Start/Stop binder operations in these cases?
