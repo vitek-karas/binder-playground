@@ -2,7 +2,7 @@
 
 ## Problem statement
 .NET Core runtime has only limited support for dynamically loading assemblies which have additional dependencies or possibly collide with the app in any way. Out of the box only these scenarios really work:
-* Assemblies which have no additional dependencies other than those find in the app itself (`Assembly.Load` and `Assembly.LoadFrom`)
+* Assemblies which have no additional dependencies other than those found in the app itself (`Assembly.Load`)
 * Assemblies which have additional dependencies in the same folder and which don't collide with anything in the app itself (`Assembly.LoadFrom`)
 * Loading a single assembly in full isolation (from the app), but all its dependencies must come from the app (`Assembly.LoadFile`)
 
@@ -27,10 +27,33 @@ We propose to add a new public API which would dynamically load a component with
 * Optionally such component can be enabled for unloading
 
 Public API (early thinking):
-* `static Assembly Assembly.LoadFileWithDependencies` - in its core similar to `Assembly.LoadFile` but it supports resolving dependencies through `.deps.json` and such. Just like `Assembly.LoadFile` it provides isolation, but also for the dependencies.
-* `static AssemblyLoadContext AssemblyLoadContext.CreateForAssemblyWithDependencies(string assemblyPath)` - "advanced" version which would return an ALC instance and not just the main assembly. Could have overloads for enabling unloadability.
+```csharp
+class Assembly
+{
+    public static Assembly LoadFileWithDependencies(string path);
+}
+```
 
-## High-level description of the solution
+In its core this is similar to `Assembly.LoadFile` but it supports resolving dependencies through `.deps.json` and such. Just like `Assembly.LoadFile` it provides isolation, but also for the dependencies.
+
+```csharp
+class AssemblyLoadContext
+{
+    public static AssemblyLoadContext CreateForAssemblyWithDependencies(string assemblyPath);
+
+    public static AssemblyLoadContext CreateForAssemblyWithDependencies(
+        string assemblyPath,
+        AssemblyLoadContext fallbackContext,
+        bool enableUnloading);
+}
+```
+
+"Advanced" version which would return an ALC instance and not just the main assembly. Allows for additional changes to the `AssemblyLoadContext`, like registering an event handler to the `Resolving` event for example.  
+The second overload adds the ability to specify:
+* `fallbackContext` which is the `AssemblyLoadContext` to defer to when the assembly resolution is not possible in this current context. By default this is the `AssemblyLoadContext.Default` (the app's context). This allows for creating effectively parent-child relationships between the load contexts.
+* `enableUnloading` which will mark the newly create load context to track references and to trigger unload fo the load context and all the assemblies in it when possible.
+
+## High-level description of the implementation
 * Implement a new `AssemblyLoadContext` which will provide the isolation boundary and act as the "root" for the component. It can be enabled for unloading.  
 * The new load context is initialized by specifying the full path to the main assembly of the component to load.  
 * It will look for the `.deps.json` next to that assembly to determine its dependencies. Lack of `.deps.json` will be treated in the same way it is today for executable apps - that is all the assemblies in the same folder will be used as dependencies.
@@ -46,3 +69,10 @@ Public API (early thinking):
 * Components can't add frameworks to the app - the app must "pre-load" all necessary frameworks.
 * By default only framework types will be shared between the app and the component. The component may chose to share more by not including dependencies in the component (`CopyLocal=false`).
 * Pretty much all settings in `.runtimeconfig.json` and `.runtimeconfig.dev.json` will be ignored with the exception of runtime version (probably done through TFM) and additional probing paths.
+
+## TODOs
+* Short description of `.deps.json` functionality - to demonstrate the capabilities we'll enable by using it.
+* Section about expected tooling experiences - what does it mean to build a "plugin" using .NET SDK and so on.
+* Section about settings/config knobs - env. variables, roll forward settings, command line arguments - which will have effect of component loading and which will be ignored and how.
+* Section about interactions of the new ALC with existing extension points of the binder (various events on `Assembly`, `AppDomain` and `AssemblyLoadContext`, interaction with other ALCs, native asset resolution extension points ...)
+* More details on native asset resolution
