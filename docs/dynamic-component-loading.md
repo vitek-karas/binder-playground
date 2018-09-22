@@ -76,3 +76,4 @@ The second overload adds the ability to specify:
 * Section about settings/config knobs - env. variables, roll forward settings, command line arguments - which will have effect of component loading and which will be ignored and how.
 * Section about interactions of the new ALC with existing extension points of the binder (various events on `Assembly`, `AppDomain` and `AssemblyLoadContext`, interaction with other ALCs, native asset resolution extension points ...)
 * More details on native asset resolution
+* More details on satellite assembly resolution
