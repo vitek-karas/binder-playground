@@ -16,16 +16,16 @@ List of few scenarios where dynamic loading of full components is required:
 * XUnit loading tests - the test runner acts as an app and the test is loaded dynamically. The test can have any number of dependencies. Finding and resolving those dependencies is challenging.
 * ASP .NET's `dotnet watch` - ability to dynamically reload an app without restarting the process. Each version of the app is inherently in collision with any previous version. The old version should be unloaded.
 
-In lot of these cases the component which is to be loaded dynamically has a non-trivial amount of dependencies which are unknown to the app itself. So the loading mechanism has to be able to resolve them.
+In lot of these cases the component which is to be loaded dynamically has a non-trivial set of dependencies which are unknown to the app itself. So the loading mechanism has to be able to resolve them.
 
 ## Declaring dependencies
 The .NET Core SDK tooling produces `.deps.json` which is a dependency manifest for dotnet apps. It enables components (or apps) to load dependencies from locations other than the base directory (ex: from packages, platform-specific publish directories, etc.)  
 .NET Core first builds a set of directories to look for binaries (called ProbingPaths) based on application/component base directory, framework directory, `.runtimeconfig.dev.json`, command line, servicing locations, etc. For more details see [host-probing](https://github.com/dotnet/core-setup/blob/master/Documentation/design-docs/host-probing.md).
 
-
 For an application or component, the `.deps.json` file specifies:
-•	A set of binary dependencies -- which are searched within ProbingPaths
-•	Relative paths to locate them -- relative paths in `.deps.json` file can be used to locate architecture-specific dependencies within publish/package directories.
+* A set of binary dependencies -- which are searched within ProbingPaths
+* Relative paths to locate them -- relative paths in `.deps.json` file can be used to locate architecture-specific dependencies within publish/package directories.
+
 If the app depends on any frameworks, the `.deps.json` files of those framework are similarly processed.
 Further details about the algorithm used for processing dependencies can be found in [assembly-conflict-resolution](
 https://github.com/dotnet/core-setup/blob/master/Documentation/design-docs/assembly-conflict-resolution.md).
@@ -87,3 +87,5 @@ The second overload adds the ability to specify:
 * Section about interactions of the new ALC with existing extension points of the binder (various events on `Assembly`, `AppDomain` and `AssemblyLoadContext`, interaction with other ALCs, native asset resolution extension points ...)
 * More details on native asset resolution
 * More details on satellite assembly resolution
+* Possible further improvements
+  * Recommended way to express app requirements for a given component. So that a generic app can implement "plugin picker" and only show compatible "plugins". Could be just a set of recommendations, or maybe a section in `.deps.json` with the appropriate managed API to read/write to it.
