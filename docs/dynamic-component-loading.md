@@ -16,13 +16,24 @@ List of few scenarios where dynamic loading of full components is required:
 * XUnit loading tests - the test runner acts as an app and the test is loaded dynamically. The test can have any number of dependencies. Finding and resolving those dependencies is challenging.
 * ASP .NET's `dotnet watch` - ability to dynamically reload an app without restarting the process. Each version of the app is inherently in collision with any previous version. The old version should be unloaded.
 
-In lot of these cases the component which is to be loaded dynamically has a non-trivial amount of dependencies which are unknown to the app itself. So the loading mechanism has to be able to resolve them.  
-The SDK tooling uses the `.deps.json` format to describe dependencies of a component, so it would be beneficial if the dynamic load was able to use this same format for dependency resolution.
+In lot of these cases the component which is to be loaded dynamically has a non-trivial amount of dependencies which are unknown to the app itself. So the loading mechanism has to be able to resolve them.
+
+## Declaring dependencies
+The .NET Core SDK tooling produces `.deps.json` which is a dependency manifest for dotnet apps. It enables components (or apps) to load dependencies from locations other than the base directory (ex: from packages, platform-specific publish directories, etc.)  
+.NET Core first builds a set of directories to look for binaries (called ProbingPaths) based on application/component base directory, framework directory, `.runtimeconfig.dev.json`, command line, servicing locations, etc. For more details see [host-probing](https://github.com/dotnet/core-setup/blob/master/Documentation/design-docs/host-probing.md).
+
+
+For an application or component, the `.deps.json` file specifies:
+•	A set of binary dependencies -- which are searched within ProbingPaths
+•	Relative paths to locate them -- relative paths in `.deps.json` file can be used to locate architecture-specific dependencies within publish/package directories.
+If the app depends on any frameworks, the `.deps.json` files of those framework are similarly processed.
+Further details about the algorithm used for processing dependencies can be found in [assembly-conflict-resolution](
+https://github.com/dotnet/core-setup/blob/master/Documentation/design-docs/assembly-conflict-resolution.md).
 
 ## Dynamic loading with dependencies
 We propose to add a new public API which would dynamically load a component with these properties:
 * Component is loaded in isolation from the app (and other components) so that potential collisions are not an issue
-* Component can use `.deps.json` to describe its dependencies. This includes the ability to describe additional NuGet packages, RID-specific and/or native dependencies.
+* Component can use `.deps.json` to describe its dependencies. This includes the ability to describe additional NuGet packages, RID-specific and/or native dependencies
 * Component can chose to rely on the app for certain dependencies by not including them in its `.deps.json`
 * Optionally such component can be enabled for unloading
 
@@ -71,7 +82,6 @@ The second overload adds the ability to specify:
 * Pretty much all settings in `.runtimeconfig.json` and `.runtimeconfig.dev.json` will be ignored with the exception of runtime version (probably done through TFM) and additional probing paths.
 
 ## TODOs
-* Short description of `.deps.json` functionality - to demonstrate the capabilities we'll enable by using it.
 * Section about expected tooling experiences - what does it mean to build a "plugin" using .NET SDK and so on.
 * Section about settings/config knobs - env. variables, roll forward settings, command line arguments - which will have effect of component loading and which will be ignored and how.
 * Section about interactions of the new ALC with existing extension points of the binder (various events on `Assembly`, `AppDomain` and `AssemblyLoadContext`, interaction with other ALCs, native asset resolution extension points ...)
