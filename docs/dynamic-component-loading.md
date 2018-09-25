@@ -69,9 +69,18 @@ The second overload adds the ability to specify:
 * The new load context is initialized by specifying the full path to the main assembly of the component to load.  
 * It will look for the `.deps.json` next to that assembly to determine its dependencies. Lack of `.deps.json` will be treated in the same way it is today for executable apps - that is all the assemblies in the same folder will be used as dependencies.
 * Parsing and understanding of the `.deps.json` will be performed by the same host components which do this for executable apps (so same behavior/quirks/bugs, very little code duplication).
-* If the component has `.runtimeconfig.json` it will only be used to verify runtime version and provide probing paths.
+* If the component has `.runtimeconfig.json` and/or `.runtimeconfig.dev.json` it will only be used to verify runtime version and provide probing paths.
 * The load context will determine a list of assemblies similar to TPA and list of native search paths. These will be used to resolve any assembly binding events in the load context.
 * If the load context can't resolve an assembly bind event, it will fallback to the parent load context (the app)
+
+## Handling of various asset types
+What happens with various asset types once the ALC decides to load it in isolation.
+* Normal managed assembly (code) - The `.deps.json` parsing code will return list of full file paths. The ALC will just find it there and load it.
+* Satellite assemblies (resources) - Two possibilities:
+    * Imitate app behavior exactly - `.deps.json` only provides list of resource probing paths. ALC would then try to find the `<culture>/AssemblyName.dll` in each probing path and resolve the first match.
+    * Use full paths - `.deps.json` resolution actually internally produces a list of full file paths and then trims it to just probing paths. The full file paths could be used by the ALC in a very similar manner to code assemblies.
+* Native libraries - To integrate well the ALC would only get list of native probing paths from the `.deps.json`. It would then use new API to load native library given a probing path and a simple name. Internally this would call into the existing runtime behavior (which tries various prefix/suffix combinations and so on).
+* R2R Images (NI images) - The same list of full paths as for managed assemblies may contain NI images (recognized by file extension). NI images take priority over IL images always. ALC will load the NI image.
 
 ## Important implications and limitations
 * Only framework dependent components will be supported. Self-contained components will not be supported even if there was a way to produce them.
@@ -85,8 +94,5 @@ The second overload adds the ability to specify:
 * Section about expected tooling experiences - what does it mean to build a "plugin" using .NET SDK and so on.
 * Section about settings/config knobs - env. variables, roll forward settings, command line arguments - which will have effect of component loading and which will be ignored and how.
 * Section about interactions of the new ALC with existing extension points of the binder (various events on `Assembly`, `AppDomain` and `AssemblyLoadContext`, interaction with other ALCs, native asset resolution extension points ...)
-* More details on native asset resolution
-* More details on satellite assembly resolution
-* Handling of R2R images (NI)
 * Possible further improvements
   * Recommended way to express app requirements for a given component. So that a generic app can implement "plugin picker" and only show compatible "plugins". Could be just a set of recommendations, or maybe a section in `.deps.json` with the appropriate managed API to read/write to it.
