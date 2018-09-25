@@ -87,5 +87,6 @@ The second overload adds the ability to specify:
 * Section about interactions of the new ALC with existing extension points of the binder (various events on `Assembly`, `AppDomain` and `AssemblyLoadContext`, interaction with other ALCs, native asset resolution extension points ...)
 * More details on native asset resolution
 * More details on satellite assembly resolution
+* Handling of R2R images (NI)
 * Possible further improvements
   * Recommended way to express app requirements for a given component. So that a generic app can implement "plugin picker" and only show compatible "plugins". Could be just a set of recommendations, or maybe a section in `.deps.json` with the appropriate managed API to read/write to it.
