@@ -75,12 +75,12 @@ The second overload adds the ability to specify:
 
 ## Handling of various asset types
 What happens with various asset types once the ALC decides to load it in isolation.
-* Normal managed assembly (code) - The `.deps.json` parsing code will return list of full file paths. The ALC will just find it there and load it.
+* Normal managed assembly (code) - The `.deps.json` parsing code will return list of full file paths. The ALC will just find it there and load it.  
+Note that R2R images are handled by this as well since they are basically just a slightly different managed assembly.
 * Satellite assemblies (resources) - Two possibilities:
     * Imitate app behavior exactly - `.deps.json` only provides list of resource probing paths. ALC would then try to find the `<culture>/AssemblyName.dll` in each probing path and resolve the first match.
     * Use full paths - `.deps.json` resolution actually internally produces a list of full file paths and then trims it to just probing paths. The full file paths could be used by the ALC in a very similar manner to code assemblies.
 * Native libraries - To integrate well the ALC would only get list of native probing paths from the `.deps.json`. It would then use new API to load native library given a probing path and a simple name. Internally this would call into the existing runtime behavior (which tries various prefix/suffix combinations and so on).
-* R2R Images (NI images) - The same list of full paths as for managed assemblies may contain NI images (recognized by file extension). NI images take priority over IL images always. ALC will load the NI image.
 
 ## Important implications and limitations
 * Only framework dependent components will be supported. Self-contained components will not be supported even if there was a way to produce them.
