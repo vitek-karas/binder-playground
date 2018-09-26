@@ -76,7 +76,7 @@ The second overload adds the ability to specify:
 ## Handling of various asset types
 What happens with various asset types once the ALC decides to load it in isolation.
 * Normal managed assembly (code) - The `.deps.json` parsing code will return list of full file paths. The ALC will just find it there and load it.  
-Note that R2R images are handled by this as well since they are basically just a slightly different managed assembly.
+Note that R2R images are handled by this as well since they are basically just a slightly different managed assembly. Also note that .NET Core can only load a given R2R image once as R2R. Any subsequent load of the same file will work, but it will be only read as a pure IL assembly (and thus require JITing). Loading the same file multiple times can occur if two load contexts decide to load the assembly in isolation.
 * Satellite assemblies (resources) - Two possibilities:
     * Imitate app behavior exactly - `.deps.json` only provides list of resource probing paths. ALC would then try to find the `<culture>/AssemblyName.dll` in each probing path and resolve the first match.
     * Use full paths - `.deps.json` resolution actually internally produces a list of full file paths and then trims it to just probing paths. The full file paths could be used by the ALC in a very similar manner to code assemblies.
