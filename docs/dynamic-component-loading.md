@@ -70,8 +70,7 @@ The second overload adds the ability to specify:
 * It will look for the `.deps.json` next to that assembly to determine its dependencies. Lack of `.deps.json` will be treated in the same way it is today for executable apps - that is all the assemblies in the same folder will be used as dependencies.
 * Parsing and understanding of the `.deps.json` will be performed by the same host components which do this for executable apps (so same behavior/quirks/bugs, very little code duplication).
 * If the component has `.runtimeconfig.json` and/or `.runtimeconfig.dev.json` it will only be used to verify runtime version and provide probing paths.
-* The load context will determine a list of assemblies similar to TPA and list of native search paths. These will be used to resolve any assembly binding events in the load context.
-* If the load context can't resolve an assembly bind event, it will fallback to the parent load context (the app)
+* The load context will determine a list of assemblies similar to the TPA and lists of resources and native search paths and remember them. These will be used to resolve binding events in the load context.
 
 ## Handling of various asset types
 What happens with various asset types once the ALC decides to load it in isolation.
@@ -82,12 +81,32 @@ Note that R2R images are handled by this as well since they are basically just a
     * Use full paths - `.deps.json` resolution actually internally produces a list of full file paths and then trims it to just probing paths. The full file paths could be used by the ALC in a very similar manner to code assemblies.
 * Native libraries - To integrate well the ALC would only get list of native probing paths from the `.deps.json`. It would then use new API to load native library given a probing path and a simple name. Internally this would call into the existing runtime behavior (which tries various prefix/suffix combinations and so on).
 
+## Isolation strategies
+There are several ways the new dynamic component loading can handle isolation:
+* **Full isolation** - in this case a new load context is created and it always tries to resolve the bind operation first. If it can do so, it will load the dependency from the resolved location into the new load context. Only the dependencies which can't be resolved (typically framework assemblies) will be handed to the parent (Default) load context.
+    * This provides full isolation to the component. Every dependency the component carries with it will be used from the component and loaded in isolation from the rest of the app. Basically avoids any potential collisions.
+    * On the downside, this doesn't provide implicit sharing. Typically only framework assemblies would be shared in this scenario. Component would have to explicitly choose which assemblies to share, by not carrying them with it (this can be setup in project file by using `CopyLocal=false` for assembly references, similar option exists for project and NuGet references as well). This means that types used for communication between the app and the component would have to be explicitly shared by the component (via the exclusion of the assembly in the component). This is not done by the SDK by default, so it's easy to get this wrong and even with improved diagnostic will be relatively hard to debug.
+* **Always load into default** - in this case all loads are done to the parent (Default) load context. In the extreme case a new load context is not really needed. Alternative could be that the load is attempted to the default load context (first by name, then by resolved file path). If that fails (should really only happen in case of a collision), the dependency would be loaded into the new load context in isolation.
+    * Inherently shares as much as possible - avoids problems of sharing types used for communication.
+    * Downside is that loading a component will "pollute" the default load context with assemblies form the component.
+    * Loading multiple components with similar dependencies can easily lead to unpredictable results as what gets loaded where would depend on ordering.
+    * Auto-upgrades - if the app uses a higher version of a given dependency, component which uses a lower version of the dependency will get the app's version - this can lead to incompatibilities.
+* **Prefer default** - in this case a new load context is created. When it tries to resolve a dependency, it will first try to resolve it against the parent (Default) load context. If the parent can satisfy the dependency, it will be used. Otherwise if the dependency can't be resolved by the parent, the new load context will resolve it to a file name and load it in isolation into the new load context.
+    * Inherently shares all assemblies from the parent (Default) - avoids problems with sharing types used for communication.
+    * There's no pollution of the parent context - no new files will be loaded into the parent context.
+    * Auto-upgrade - components will auto-upgrade to the version of a dependency they share with the app (downgrade will not occur, in that case the dependency would be loaded in isolation). This can lead to incompatibilities.
+
+Open questions:
+* Which is the default behavior?
+* Does the framework implement more than one behavior and lets users choose?
+* In the "prefer default" behavior - what does it mean for the parent context to "satisfy" the dependency? Does it mean exact version match, or does it allow auto-upgrade (patch, minor or even major)? Do we even allow downgrades?
+
 ## Important implications and limitations
 * Only framework dependent components will be supported. Self-contained components will not be supported even if there was a way to produce them.
 * The host (the app) can be any configuration (framework dependent or self-contained). The notion of frameworks is completely ignored by this new functionality.
 * All framework dependencies of the component must be resolvable by the app - simply put, the component must use the same frameworks as the app.
 * Components can't add frameworks to the app - the app must "pre-load" all necessary frameworks.
-* By default only framework types will be shared between the app and the component. The component may chose to share more by not including dependencies in the component (`CopyLocal=false`).
+* In all cases framework assemblies (and thus types) will be shared between the app and the component. Sharing of other assemblies depends on the isolation strategy used - see above.
 * Pretty much all settings in `.runtimeconfig.json` and `.runtimeconfig.dev.json` will be ignored with the exception of runtime version (probably done through TFM) and additional probing paths.
 
 ## TODOs
