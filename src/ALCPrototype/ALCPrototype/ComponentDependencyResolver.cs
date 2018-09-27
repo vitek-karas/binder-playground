@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 
 namespace ALCPrototype
@@ -29,6 +30,14 @@ namespace ALCPrototype
             }
         }
 
+        public string ResolveAssembly(AssemblyName assemblyName)
+        {
+            return null;
+        }
 
+        public string ResolveUnmanagedDll(string unmanagedDllName)
+        {
+            return null;
+        }
     }
 }
