@@ -36,7 +36,6 @@ namespace ALCPrototype
             Console.WriteLine();
             Console.WriteLine("Full isolation context with explicit sharing:");
             {
-                Console.WriteLine("Full isolation context:");
                 ComponentDependencyResolver resolver = new ComponentDependencyResolver(pluginPath);
                 AssemblyLoadContext_ fullIsolationContext = new AssemblyLoadContext_("FullIsolation");
                 fullIsolationContext.Loading += (context, asmName) =>
