@@ -189,3 +189,4 @@ TODOs for this document:
     * Is there interaction between managed resolution and native resolution?
     * Describe scenarios
 * What are the internal runtime entry points to the binder (outside of `Assembly.Load*` and `AssemblyLoadContext`)? Can we correctly Start/Stop binder operations in these cases?
+* Tracing around assembly probing - If the app specifies `Microsoft.NETCore.DotNetHostPolicy.SetAppPaths` configuration option in its `.runtimeconfig.json` then the host will set the application directory as `APP_PATHS` and `APP_NI_PATHS` to the runtime. In this case, if TPA lookup fails in the Default context, these paths (really just the app directory) is searched for the assembly by a simple name file lookup. This is relatively hidden feature, but if it does come into play it can affect binding quite a bit. Possibly add some basic tracing around this area as well.
