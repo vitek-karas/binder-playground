@@ -43,8 +43,8 @@ pluginContext.Resolving += (context, assemblyName) =>
 
 Assembly pluginAssembly = pluginContext.LoadFromAssemblyName(new AssemblyName("Plugin"));
 
-// ... use the pluginAssembly and reflection to invoke functionality from the plugin
-// all the dependencies of the plugin are resolved by the event handler above using the resolver
+// ... use the pluginAssembly and reflection to invoke functionality from the plugin.
+// Dependencies of the plugin are resolved by the event handler above using the resolver
 // to provide the actual resolution from assembly name to file path.
 ```
 
