@@ -8,7 +8,7 @@ namespace System.Runtime.Loader
     {
         public ComponentDependencyResolver(string componentAssemblyPath);
 
-        public string ResolveAssembly(AssemblyName assemblyName)
+        public string ResolveAssembly(AssemblyName assemblyName);
         public string ResolveUnmanagedDll(string unmanagedDllName);
     }
 }
