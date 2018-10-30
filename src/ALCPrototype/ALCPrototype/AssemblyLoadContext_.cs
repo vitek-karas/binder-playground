@@ -42,4 +42,20 @@ namespace ALCPrototype
             return (Name ?? "AssemblyLoadContext") + " " + GetHashCode().ToString();
         }
     }
+
+    public static class AssemblyLoadContextExtensions
+    {
+        public static Assembly LoadWithDependencies(this AssemblyLoadContext loadContext, string filePath)
+        {
+            ComponentDependencyResolver resolver = new ComponentDependencyResolver(filePath);
+            loadContext.Resolving += resolver.LoadAssembly;
+            AppDomain.CurrentDomain.AssemblyLoad += CurrentDomain_AssemblyLoad;
+            return loadContext.LoadFromAssemblyPath(filePath);
+        }
+
+        private static void CurrentDomain_AssemblyLoad(object sender, AssemblyLoadEventArgs args)
+        {
+            Console.WriteLine($"--- Assembly {args.LoadedAssembly} from {args.LoadedAssembly.Location} loaded into {AssemblyLoadContext.GetLoadContext(args.LoadedAssembly)}");
+        }
+    }
 }
