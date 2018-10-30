@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "ComponentDependencyTests": {
+      "commandName": "Executable",
+      "executablePath": "\"F:\\vitkaras\\binder-playground\\src\\ComponentDependencyResolver\\dotnet\\dotnet.exe\""
+    }
+  }
+}
