@@ -15,9 +15,9 @@ namespace System.Runtime.Loader
 ```
 
 ### Functionality
-Given the path to a component assembly (the main `.dll` of a given component, for example the build result of a class library project), the constructor creates a resolver object which can resolve all managed and unmanaged dependencies of the component. The constructor would look for the `.deps.json` file next to the main assembly and use it to compute the full set of dependencies.
+Given the path to a component assembly (the main `.dll` of a given component, for example the build result of a class library project), the constructor creates a resolver object which can resolve managed and unmanaged dependencies of the component. The constructor would look for the `.deps.json` file next to the main assembly and use it to compute the set of dependencies.
 
-The `ResolveAssembly` and `ResolveUnmanagedDll` methods are then used to resolve references to managed and unmanaged dependencies to full like paths. The methods take the name of the dependency and return either null if such dependency can't be resolved by the component, or a full path to the file (managed assembly or unmanaged library).
+The `ResolveAssembly` and `ResolveUnmanagedDll` methods are then used to resolve references to managed and unmanaged dependencies. These methods take the name of the dependency and return either null if such dependency can't be resolved by the component, or a full path to the file (managed assembly or unmanaged library).
 
 The constructor is expected to catch most error cases and report them as exceptions. The `Resolve` methods should in general not throw and instead return null if the dependency can't be resolved.
 
@@ -25,7 +25,7 @@ The constructor is expected to catch most error cases and report them as excepti
 
 The proposed API can be used to greatly simplify dynamic loading of components. It provides a powerful building block to use for implementing custom `AssemblyLoadContext` or event handlers for the binding events like `AppDomain.AssemblyResolve` and `AssemblyLoadContext.Resolving`.
 
-Using the new API to load plugins with `AssemblyLoadContext` and isolation:
+Example of using the new API to load plugins with `AssemblyLoadContext` in isolation:
 ``` C#
 ComponentDependencyResolver resolver = new ComponentDependencyResolver("plugin.dll");
 
@@ -52,9 +52,9 @@ Assembly pluginAssembly = pluginContext.LoadFromAssemblyName(new AssemblyName("P
 
 Using the newly proposed `MetadataLoadContext` API (see the [proposal](https://github.com/dotnet/corefx/issues/2800)) to inspect IL metadata of components. This API requires an assembly resolver to resolve dependencies of the component. The proposed `ComponentDependencyResolver` would be used to implement such resolver for components produced by the .NET Core SDK.
 
-Using the new API to implement `MetadataAssemblyResolver`:
+Example of using the new API to implement `MetadataAssemblyResolver`:
 ``` C#
-public class ComponentAssemblyResolver : MetadataAssemblyResolver
+public class ComponentMetadataAssemblyResolver : MetadataAssemblyResolver
 {
     private ComponentDependencyResolver dependencyResolver;
 
@@ -70,7 +70,6 @@ public class ComponentAssemblyResolver : MetadataAssemblyResolver
     }
 }
 ```
-The usage of such resolver is described in the #corefx/2800 issue.
 
 
 ### Context
