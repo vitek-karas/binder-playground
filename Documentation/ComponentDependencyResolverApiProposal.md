@@ -8,8 +8,8 @@ namespace System.Runtime.Loader
     {
         public ComponentDependencyResolver(string componentAssemblyPath);
 
-        public string ResolveAssembly(AssemblyName assemblyName);
-        public string ResolveUnmanagedDll(string unmanagedDllName);
+        public string ResolveAssemblyToPath(AssemblyName assemblyName);
+        public string ResolveUnmanagedDllToPath(string unmanagedDllName);
     }
 }
 ```
@@ -17,7 +17,7 @@ namespace System.Runtime.Loader
 ### Functionality
 Given the path to a component assembly (the main `.dll` of a given component, for example the build result of a class library project), the constructor creates a resolver object which can resolve managed and unmanaged dependencies of the component. The constructor would look for the `.deps.json` file next to the main assembly and use it to compute the set of dependencies.
 
-The `ResolveAssembly` and `ResolveUnmanagedDll` methods are then used to resolve references to managed and unmanaged dependencies. These methods take the name of the dependency and return either null if such dependency can't be resolved by the component, or a full path to the file (managed assembly or unmanaged library).
+The `ResolveAssemblyToPath` and `ResolveUnmanagedDllToPath` methods are then used to resolve references to managed and unmanaged dependencies. These methods take the name of the dependency and return either null if such dependency can't be resolved by the component, or a full path to the file (managed assembly or unmanaged library).
 
 The constructor is expected to catch most error cases and report them as exceptions. The `Resolve` methods should in general not throw and instead return null if the dependency can't be resolved.
 
@@ -32,7 +32,7 @@ ComponentDependencyResolver resolver = new ComponentDependencyResolver("plugin.d
 AssemblyLoadContext pluginContext = new AssemblyLoadContext("Plugin");
 pluginContext.Resolving += (context, assemblyName) =>
 {
-    string assemblyPath = resolver.ResolveAssembly(assemblyName);
+    string assemblyPath = resolver.ResolveAssemblyToPath(assemblyName);
     if (assemblyPath != null)
     {
         return context.LoadFromAssemblyPath(assemblyPath);
@@ -60,7 +60,7 @@ public class ComponentMetadataAssemblyResolver : MetadataAssemblyResolver
 
     public override Assembly Resolve(MetadataLoadContext context, AssemblyName assemblyName)
     {
-        string assemblyPath = dependencyResolver.ResolveAssembly(assemblyName);
+        string assemblyPath = dependencyResolver.ResolveAssemblyToPath(assemblyName);
         if (assemblyPath != null)
         {
             return context.LoadFromAssemblyPath(assemblyPath);
